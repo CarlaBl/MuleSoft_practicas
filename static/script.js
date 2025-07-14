@@ -1,27 +1,4 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>Visualizador de Webhooks</title>
-  <link rel="stylesheet" src="style.css">
-</head>
-<body>
-  <h2>Envíos de Webhooks en Tiempo Real</h2>
-
-  <form id="subForm">
-    <label>Usuario:</label>
-    <input type="text" id="username" required><br><br>
-    <label>Cuota mensual:</label>
-    <input type="number" id="monthlyFee" required><br><br>
-    <label>Fecha de inicio:</label>
-    <input type="datetime-local" id="startDate" required><br><br>
-    <button type="submit">Iniciar envíos</button>
-  </form>
-
-  <div id="log"></div>
-
-  <script>
-    const logDiv = document.getElementById("log");
+const logDiv = document.getElementById("log");
     const form = document.getElementById("subForm");
 
     form.addEventListener("submit", async (e) => {
@@ -35,7 +12,7 @@
       const payload = { username, monthly_fee: monthlyFee, start_date: startDate };
 
       try {
-        const res = await fetch("http://localhost:10000/new-subscription", {
+        const res = await fetch("https://mulesoft-practicas.onrender.com/new-subscription", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
@@ -58,6 +35,3 @@
         logDiv.innerHTML = "<p>Error al conectar con el servidor</p>";
       }
     });
-  </script>
-</body>
-</html>
