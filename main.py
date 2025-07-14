@@ -8,8 +8,8 @@ from pydantic import BaseModel
 
 app = FastAPI()
 
-# URL del webhook destino 
-WEBHOOK_URL = "https://webhook.site/db676ba8-962e-4e5b-86e2-9f7da048c4fe"
+# URL del webhook destino (puedes modificarla)
+WEBHOOK_URL = "https://webhook.site/tu-id-aquí"
 HEADERS = {"Content-Type": "application/json"}
 
 
@@ -18,13 +18,14 @@ class Subscription(BaseModel):
     monthly_fee: float
     start_date: datetime
 
-#funcion asíncrona para enviar el webhook cada 5 segundos
+# Función para enviar el webhook en segundo plano
 async def send_webhook(body: Subscription):
     contador = 1
     while True:
         payload = {
             "mensaje": "Hola desde Python",
             "usuario": body.username,
+            "tecnologia": "Webhook + JSON",
             "timestamp": datetime.now().isoformat(),
             "numero_envio": contador,
             "cuota_mensual": body.monthly_fee,
@@ -37,13 +38,18 @@ async def send_webhook(body: Subscription):
         contador += 1
         await asyncio.sleep(5)  # Esperar 5 segundos
 
-# Endpoint para iniciar el envío de webhooks en segundo plano
+# Define la ruta para iniciar el webhook en segundo plano
 @app.post("/new-subscription")
 async def new_subscription(body: Subscription, background_tasks: BackgroundTasks):
     background_tasks.add_task(send_webhook, body)
     return {"mensaje": "Webhook iniciado en segundo plano."}
 
-# Endpoint de ejemplo para verificar usuarios
+# Define una ruta de prueba para verificar que el servidor está funcionando
+@app.get("/")
+def read_root():
+    return {"mensaje": "Servidor de Webhook activo"}
+
+# Ruta de prueba para obtener una lista de usuarios
 @app.get("/users/")
 def read_users():
     return ["Rick", "Morty"]
