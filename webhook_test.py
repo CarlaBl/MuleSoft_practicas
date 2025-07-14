@@ -18,12 +18,11 @@ for i in range(1, 6):
         "numero_envio": i,
         "timestamp": datetime.now().isoformat(),
         "usuario": "carla",
-        "tecnologia": "Python puro + requests"
     }
 
     response = requests.post(WEBHOOK_URL, data=json.dumps(payload), headers=headers)
 
-    print(f"✅ Envío #{i} - Status: {response.status_code} - Hora: {datetime.now().strftime('%H:%M:%S')}")
+    print(f"Envío #{i} - Status: {response.status_code} - Hora: {datetime.now().strftime('%H:%M:%S')}")
     time.sleep(5)
 
 print("\n Prueba terminada.")
