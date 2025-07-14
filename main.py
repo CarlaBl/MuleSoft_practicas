@@ -1,15 +1,15 @@
 from datetime import datetime
-import requests
 import json
 import asyncio
+import httpx
 
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI
 from pydantic import BaseModel
 
 app = FastAPI()
 
 # URL del webhook destino 
-WEBHOOK_URL = "https://webhook.site/db676ba8-962e-4e5b-86e2-9f7da048c4fe"
+WEBHOOK_URL = "https://webhook.site/3b286f26-8180-4267-a4b1-d00fb2b4d393"
 HEADERS = {"Content-Type": "application/json"}
 
 
@@ -19,29 +19,31 @@ class Subscription(BaseModel):
     start_date: datetime
 
 #funcion asíncrona para enviar el webhook cada 5 segundos
-async def send_webhook(body: Subscription):
-    contador = 1
-    while True:
-        payload = {
-            "mensaje": "Hola desde Python",
-            "usuario": body.username,
-            "numero_envio": contador,
-            "timestamp": datetime.now().isoformat(),
-            "cuota_mensual": body.monthly_fee,
-            "fecha_inicio": body.start_date.isoformat()
-        }
+async def send_webhooks(body: Subscription, cantidad_envios: int = 5, intervalo: int = 5):
+    async with httpx.AsyncClient() as client:
+        for i in range(1, cantidad_envios + 1):
+            payload = {
+                "mensaje": "Hola desde FastAPI",
+                "usuario": body.username,
+                "numero_envio": i,
+                "timestamp": datetime.now().isoformat(),
+                "cuota_mensual": body.monthly_fee,
+                "fecha_inicio": body.start_date.isoformat()
+            }
 
-        response = requests.post(WEBHOOK_URL, data=json.dumps(payload), headers=HEADERS)
-        tiempo_actual = datetime.now().strftime('%H:%M:%S')
-        print(f" Envío #{contador} - Estado: {response.status_code} - Hora: {tiempo_actual}")
-        contador += 1
-        await asyncio.sleep(5)  # Esperar 5 segundos
+            try:
+                response = await client.post(WEBHOOK_URL, data=json.dumps(payload), headers=HEADERS, timeout=5)
+                print(f"Envío #{i} - Estado: {response.status_code} - Hora: {datetime.now().strftime('%H:%M:%S')}")
+            except httpx.RequestError as e:
+                print(f"Error al enviar webhook #{i}: {str(e)}")
+
+            await asyncio.sleep(intervalo)
 
 # Endpoint para iniciar el envío de webhooks en segundo plano
 @app.post("/new-subscription")
-async def new_subscription(body: Subscription, background_tasks: BackgroundTasks):
-    background_tasks.add_task(send_webhook, body)
-    return {"mensaje": "Se hizo una nueva subscription."}
+async def new_subscription(body: Subscription):
+    asyncio.create_task(send_webhooks(body))
+    return {"mensaje": "Envíos iniciados en segundo plano."}
 
 # Endpoint de ejemplo para verificar usuarios
 @app.get("/users/")
