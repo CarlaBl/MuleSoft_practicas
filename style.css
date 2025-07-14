@@ -1,0 +1,21 @@
+body {
+    font-family: Arial, sans-serif;
+    padding: 2rem;
+    background: #f3f3f3;
+    }
+h2 {
+    color: #333;
+    }
+#log {
+    background: #fff;
+    border: 1px solid #ccc;
+    padding: 1rem;
+    max-height: 300px;
+    overflow-y: scroll;
+    }
+.entry {
+    margin-bottom: 1em;
+    padding-bottom: 0.5em;
+    border-bottom: 1px solid #ddd;
+    }
+  
