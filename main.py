@@ -25,9 +25,8 @@ async def send_webhook(body: Subscription):
         payload = {
             "mensaje": "Hola desde Python",
             "usuario": body.username,
-            "tecnologia": "Webhook + JSON",
-            "timestamp": datetime.now().isoformat(),
             "numero_envio": contador,
+            "timestamp": datetime.now().isoformat(),
             "cuota_mensual": body.monthly_fee,
             "fecha_inicio": body.start_date.isoformat()
         }
@@ -42,7 +41,7 @@ async def send_webhook(body: Subscription):
 @app.post("/new-subscription")
 async def new_subscription(body: Subscription, background_tasks: BackgroundTasks):
     background_tasks.add_task(send_webhook, body)
-    return {"mensaje": "Webhook iniciado en segundo plano."}
+    return {"mensaje": "Se hizo una nueva subscription."}
 
 # Endpoint de ejemplo para verificar usuarios
 @app.get("/users/")
