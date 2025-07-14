@@ -1,4 +1,5 @@
 from datetime import datetime
+from fastapi import Query
 import requests
 import json
 import asyncio
@@ -12,6 +13,7 @@ app = FastAPI()
 WEBHOOK_URL = "https://webhook.site/tu-id-aquí"
 HEADERS = {"Content-Type": "application/json"}
 
+INTERVAL_SECONDS = 5  # Valor por defecto
 
 class Subscription(BaseModel):
     username: str
@@ -33,10 +35,15 @@ async def send_webhook(body: Subscription):
         }
 
         response = requests.post(WEBHOOK_URL, data=json.dumps(payload), headers=HEADERS)
+        # Imprimir el estado del envío
         tiempo_actual = datetime.now().strftime('%H:%M:%S')
-        print(f" Envío #{contador} - Estado: {response.status_code} - Hora: {tiempo_actual}")
+        if response.status_code == 200:
+            print(f"Envío #{contador} - Estado: {response.status_code} - Hora: {tiempo_actual}")
+        else:
+            print(f"Envío #{contador} - Estado: {response.status_code} - Hora: {tiempo_actual}")
+        # Incrementar el contador y esperar el intervalo definido
         contador += 1
-        await asyncio.sleep(5)  # Esperar 5 segundos
+        await asyncio.sleep(INTERVAL_SECONDS)  # Esperar n segundos
 
 # Define la ruta para iniciar el webhook en segundo plano
 @app.post("/new-subscription")
@@ -53,3 +60,10 @@ def read_root():
 @app.get("/users/")
 def read_users():
     return ["Rick", "Morty"]
+
+
+@app.post("/set-interval")
+def set_interval(seconds: int = Query(..., gt=0)):
+    global INTERVAL_SECONDS
+    INTERVAL_SECONDS = seconds
+    return {"mensaje": f"Intervalo actualizado a {seconds} segundos"}
