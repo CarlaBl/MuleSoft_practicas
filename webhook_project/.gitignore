@@ -1,0 +1,24 @@
+# Entornos virtuales
+venv/
+__pycache__/
+
+# Archivos de entorno y configuración sensibles
+.env
+*.env
+
+# Archivos temporales y generados
+*.log
+*.sqlite3
+*.db
+db.json
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+
+# Configuración local de desarrollo
+.vscode/
+.idea/
+
+# Render / despliegue
+render.yaml

@@ -1,88 +1,69 @@
-from datetime import datetime
-import requests
-import json
-import asyncio
-import os
-
-
 from fastapi import FastAPI, BackgroundTasks
 from pydantic import BaseModel
-from typing import List
-from tester_module import run_tests
+from datetime import datetime
+import os, asyncio, requests
+from dotenv import load_dotenv
+
+load_dotenv()  # Carga variables de entorno desde .env en local
 
 app = FastAPI()
 
-# Archivo de guardado de datos
-DATA_FILE = "db.json"
 HEADERS = {"Content-Type": "application/json"}
+webhook_active = False
 
-# Estructura de datos de un registro
-class Register(BaseModel):
+# Define el modelo de datos para la suscripción
+class Subscription(BaseModel):
     username: str
-    password: str
-    created_at: datetime = datetime.now()
-    updated_at: datetime = datetime.now()
+    monthly_fee: float
+    start_date: datetime
 
-"""
-    API (Aqui nosotros vamos a ver los datos que tenemos y trabajaremos con ellos)
-"""
 @app.get("/")
 def read_root():
-    return {"mensaje": "Servidor de Webhook activo"}
+    return {"mensaje": "Servidor activo con configuración desde entorno"}
 
-# Iniciar simulación de registros
-@app.get("/start-simulation")
-def start_simulation(background_tasks: BackgroundTasks, intervalo: int = 30):
-    # URL dónde tenemos desplegada la API
-    webhook_url = "https://mulesoft-practicas.onrender.com/webhook/new-register"
-    background_tasks.add_task(run_tests, webhook_url, intervalo)
-    return {"mensaje": f"Simulación iniciada cada {intervalo} segundos."}
+# Endpoint para iniciar el envío del webhook
+# Recibe un cuerpo de tipo Subscription y lo envía periódicamente
+@app.post("/start")
+async def start_webhook(body: Subscription, background_tasks: BackgroundTasks):
+    global webhook_active
+    webhook_active = True
+    background_tasks.add_task(send_webhook, body)
+    return {"mensaje": "Envío iniciado"}
 
+# Endpoint para detener el envío del webhook
+# Cambia el estado de webhook_active a False para detener el envío
+@app.post("/stop")
+def stop_webhook():
+    global webhook_active
+    webhook_active = False
+    return {"mensaje": "Envío detenido"}
 
-@app.get("/api/users/")
-def get_users():
-    if not os.path.exists(DATA_FILE):
-        return {"mensaje": "Archivo no encontrado"}
+# Función que envía el webhook periódicamente
+# Utiliza la variable de entorno WEBHOOK_URL para definir el destino del webhook
+async def send_webhook(body: Subscription):
+    contador = 1
+    url = os.getenv("WEBHOOK_URL")
+    sleep_time = int(os.getenv("TIME_SLEEP", 5))
 
-    try:
-        with open(DATA_FILE, "r") as f:
-            contenido = f.read().strip()
-            if not contenido:
-                return {"mensaje": "Archivo vacío"}
-            data = json.loads(contenido)
-            return data
-    except json.JSONDecodeError:
-        return {"mensaje": "El archivo contiene datos inválidos"}
+    if not url:
+        print("No se encontró la variable WEBHOOK_URL.")
+        return
 
-"""
-    WEBHOOK (Aqui nos va a avisar otro servidor cuando se registren en el)
-"""
-@app.post("/webhook/new-register")
-def new_register(body: Register, background_tasks: BackgroundTasks):
-    background_tasks.add_task(newRegister, body)
-    return {"mensaje": "Webhook iniciado en segundo plano."}
+    while webhook_active:
+        payload = {
+            "mensaje": "Hola desde Python",
+            "usuario": body.username,
+            "timestamp": datetime.now().isoformat(),
+            "numero_envio": contador,
+            "cuota_mensual": body.monthly_fee,
+            "fecha_inicio": body.start_date.isoformat()
+        }
 
-# Guardar el nuevo registro en db.json
-def newRegister(body: Register):
-    nuevo = body.dict()
+        try:
+            response = requests.post(url, json=payload, headers=HEADERS)
+            print(f"Envío #{contador} - Estado: {response.status_code}")
+        except Exception as e:
+            print(f"Error al enviar webhook: {e}")
 
-    # Lee si existe el archivo de db.json si no lo crea
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r") as f:
-            contenido = f.read().strip()
-            if contenido:
-                try:
-                    data = json.loads(contenido)
-                except json.JSONDecodeError:
-                    data = []
-            else:
-                data = []
-    else:
-        data = []
-
-    # Agregar nuevo registro
-    data.append(nuevo)
-
-    # Guardar en archivo
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f, indent=4, default=str)
+        contador += 1
+        await asyncio.sleep(sleep_time)
