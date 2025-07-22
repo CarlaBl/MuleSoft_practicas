@@ -60,7 +60,6 @@ def build_xml_payload(body, id_actual):
     ET.SubElement(root, "salary").text = str(body.salary)
     return ET.tostring(root, encoding="utf-8")
 
-
 # Función que envía el webhook periódicamente
 # Utiliza la variable de entorno WEBHOOK_URL para definir el destino del webhook
 async def send_webhook(body: Employee):
@@ -90,10 +89,15 @@ async def send_webhook(body: Employee):
                 }
         '''
         try:
-            response = requests.post(url, data=xml_data, headers=HEADERS)
-            print(f"Envío xml #{contador} - Estado: {response.status_code}")
+            response = requests.post(url, data=xml_data, headers=HEADERS, timeout=10)
+            response.raise_for_status()
+            print(f"Envío xml #{contador} - Estado: {response.status_code} - Respuesta: {response.text}")
+        except requests.exceptions.HTTPError as errh:
+            print(f"Error HTTP: {errh}")
+        except requests.exceptions.Timeout:
+            print("Timeout MuleSoft")
         except Exception as e:
-            print(f"Error al enviar webhook: {e}")
-
+            print(f"Error inesperado: {e}")
+        # Incrementar el contador para el siguiente envío
         contador += 1
         await asyncio.sleep(sleep_time)
