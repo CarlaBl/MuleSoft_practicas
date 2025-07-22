@@ -8,7 +8,8 @@ import xml.etree.ElementTree as ET
 load_dotenv()  # Carga variables de entorno desde .env en local
 
 app = FastAPI()
-webhook_active = False
+# define una variable global para controlar el estado del webhook
+webhook_event = asyncio.Event()
 # HEADERS = {"Content-Type": "application/json"} = archivo JSON
 # Cambiamos a XML para el contenido del webhook
 HEADERS = {"Content-Type": "application/xml"}
@@ -33,8 +34,7 @@ def read_root():
 # Recibe un cuerpo de tipo Subscription y lo envía periódicamente
 @app.post("/start")
 async def start_webhook(body: Employee, background_tasks: BackgroundTasks):
-    global webhook_active
-    webhook_active = True
+    webhook_event.set()  # Activa el evento
     background_tasks.add_task(send_webhook, body)
     return {"mensaje": "Envío iniciado"}
 
@@ -42,8 +42,7 @@ async def start_webhook(body: Employee, background_tasks: BackgroundTasks):
 # Cambia el estado de webhook_active a False para detener el envío
 @app.post("/stop")
 def stop_webhook():
-    global webhook_active
-    webhook_active = False
+    webhook_event.clear()  # Desactiva el evento
     return {"mensaje": "Envío detenido"}
 
 
@@ -54,7 +53,8 @@ def build_xml_payload(body, id_actual):
     ET.SubElement(root, "employee_id").text = str(id_actual)
     ET.SubElement(root, "first_name").text = body.first_name
     ET.SubElement(root, "last_name").text = body.last_name
-    ET.SubElement(root, "email").text = body.email
+    email = f"{body.first_name.lower()}{id_actual}@example.com"
+    ET.SubElement(root, "email").text = email
     ET.SubElement(root, "hire_date").text = body.hire_date.isoformat()
     ET.SubElement(root, "job_id").text = body.job_id
     ET.SubElement(root, "salary").text = str(body.salary)
@@ -73,14 +73,17 @@ async def send_webhook(body: Employee):
     if not url:
         print("No se encontró la variable WEBHOOK_URL.")
         return
+    
+    print("Iniciando loop de envío...")
 
-    while webhook_active:
+
+    while webhook_event.is_set():  #Usamos el evento
         xml_data = build_xml_payload(body, contador)
         ''' archivo JSON de ejemplo
             payload = {
                 "first_name": "Carla",
                 "last_name": "Blacio",
-                "email": "carla.blacio@example.com",
+                "email": "carla@example.com",
                 "hire_date": "2025-07-21T15:36:00",
                 "job_id": "IT_PROG",
                 "salary": 60000
