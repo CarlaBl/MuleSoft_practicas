@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:file="http://www.mulesoft.org/schema/mule/file"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
+
+	<!-- Configuración HTTP -->
+    <http:listener-config name="HTTP_Listener_config">
+        <http:listener-connection host="0.0.0.0" port="8082"/>
+    </http:listener-config>
+
+    <flow name="list-files">
+    <!-- paso 1 Listener HTTP -->
+    <http:listener config-ref="HTTP_Listener_config" path="/list-files" allowedMethods="POST" doc:name="Listener"/>
+
+    <!-- Logger: path recibido -->
+    <logger level="INFO" doc:name="Logger - Path recibido" message="Path recibido: #[attributes.queryParams.path]"/>
+
+    <!-- paso 2 Listar archivos que hay en el path-->
+    <file:list directoryPath="#[attributes.queryParams.path]" doc:name="Listar archivos"/>
+
+    <!-- paso 3 Validar si hay archivos con un choice -->
+    <choice doc:name="Validar archivos">
+        <when expression="#[isEmpty(payload)]">
+            <!-- Logger: error -->
+            <logger level="WARN" doc:name="Logger - No se encontraron archivos" message="No se encontraron archivos en #[attributes.queryParams.path]"/>
+
+            <!-- si no hay archivos: Transformar error -->
+            <ee:transform doc:name="Transformar error">
+                <ee:message>
+                    <ee:set-payload><![CDATA[%dw 2.0
+output application/xml
+---
+{
+  error: {
+    code: 404,
+    message: "No se encontraron archivos en la ruta especificada"
+  }
+}]]></ee:set-payload>
+                    <ee:set-attributes><![CDATA[%dw 2.0
+output application/java
+---
+{
+  headers: {
+    "content-type": "application/xml"
+  },
+  statusCode: 404
+}]]></ee:set-attributes>
+                </ee:message>
+            </ee:transform>
+        </when>
+
+        <otherwise>
+            <!-- Logger: archivos encontrados -->
+            <logger level="INFO" doc:name="Logger - Archivos encontrados" message="Se encontraron #[sizeOf(payload)] archivos."/>
+
+            <!-- si hay archivos: Transformar archivos -->
+            <ee:transform doc:name="Transformar archivos">
+                <ee:message>
+                    <ee:set-payload><![CDATA[%dw 2.0
+output application/xml
+---
+files: {
+  file: payload map (item) -> {
+    name: item.attributes.name,
+    path: item.attributes.path
+  }
+}
+]]></ee:set-payload>
+                    <ee:set-attributes><![CDATA[%dw 2.0
+output application/java
+---
+{
+  headers: {
+    "content-type": "application/xml"
+  },
+  statusCode: 200
+}]]></ee:set-attributes>
+                </ee:message>
+            </ee:transform>
+        </otherwise>
+    </choice>
+
+    <!-- Logger: respuesta final -->
+    <logger level="INFO" doc:name="Logger - Respuesta final" message="Respuesta enviada: #[payload]"/>
+</flow>
+
+</mule>
